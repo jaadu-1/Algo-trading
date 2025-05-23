@@ -1,0 +1,39 @@
+# region imports
+from AlgorithmImports import *
+# endregion
+
+class FocusedBlackJellyfish(QCAlgorithm):
+
+    def Initialize(self):
+        self.SetStartDate(2023, 11, 21)
+        self.SetEndDate(2024, 11, 11)
+        self.SetCash(100000)
+        
+        spy = self.AddEquity("SPY", Resolution.Daily)
+        spy.SetDataNormalizationMode(DataNormalizationMode.Raw)
+        self.spy = spy.Symbol
+
+        self.SetBenchmark("SPY")
+        self.SetBrokerageModel(BrokerageName.InteractiveBrokersBrokerage, AccountType.Margin)
+
+        self.entryPrice = 0
+        self.period = timedelta(days=31)
+        self.nextEntryTime = self.Time
+
+    def OnData(self, data: Slice):
+        if not data.Bars.ContainsKey(self.spy):
+            return
+
+        price = data[self.spy].Close
+
+        if not self.Portfolio.Invested:
+            if self.Time >= self.nextEntryTime:
+                self.SetHoldings(self.spy, 1)
+                self.entryPrice = price
+                self.Log(f"BUY SPY @ {price}")
+        else:
+            # Exit condition: 10% profit or 10% loss
+            if price >= self.entryPrice * 1.1 or price <= self.entryPrice * 0.9:
+                self.Liquidate(self.spy)
+                self.Log(f"SELL SPY @ {price}")
+                self.nextEntryTime = self.Time + self.period
